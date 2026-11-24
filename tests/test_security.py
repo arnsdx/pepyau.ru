@@ -24,11 +24,11 @@ class CatalogSecurityTests(unittest.TestCase):
         self.image = self.images / "public.jpg"
         self.image.write_bytes(b"\xff\xd8\xffsample")
 
-    def request(self, path):
+    def request(self, path, method="GET", query=""):
         app = create_app(self.images, self.db)
         environ = {}
         setup_testing_defaults(environ)
-        environ["PATH_INFO"] = path
+        environ.update(PATH_INFO=path, REQUEST_METHOD=method, QUERY_STRING=query)
         statuses = []
         parts = app(environ, lambda status, headers: statuses.append(int(status.split()[0])))
         try:
@@ -54,8 +54,17 @@ class CatalogSecurityTests(unittest.TestCase):
         with self.image.open("ab") as image:
             image.truncate(MAX_IMAGE_BYTES + 1)
         self.assertEqual(self.request(f"/image/{image_id}")[0], 404)
-        status, body = self.request("/api/v2")
-        self.assertEqual((status, json.loads(body)), (401, {"code": 401, "error": "Unauthorized"}))
+
+    def test_api_placeholder_returns_401_for_entire_subtree(self):
+        for path in ("/api/v2", "/api/v2/", "/api/v2/get", "/api/v2/other/nested"):
+            for method in ("GET", "POST", "PUT", "DELETE", "OPTIONS"):
+                with self.subTest(path=path, method=method):
+                    status, body = self.request(path, method, "x=1&x=2")
+                    self.assertEqual(status, 401)
+                    self.assertEqual(json.loads(body), {"code": 401, "error": "Unauthorized"})
+
+        self.assertEqual(self.request("/api/v2/get", "HEAD"), (401, b""))
+        self.assertEqual(self.request("/api/v20/get")[0], 404)
 
     def test_migration_and_failed_scan_keep_consistent_index(self):
         with closing(sqlite3.connect(self.db)) as db:

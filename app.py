@@ -40,7 +40,7 @@ def create_app(images_dir, db_path):
             send_headers(status, mime, len(body), extra)
             return [] if method == "HEAD" else [body]
 
-        if path == "/api/v2":
+        if path == "/api/v2" or path.startswith("/api/v2/"):
             return respond(
                 HTTPStatus.UNAUTHORIZED,
                 b'{"code":401,"error":"Unauthorized"}',
