@@ -3,6 +3,11 @@ limit_req_zone $server_name zone=all_requests:1m rate=50r/s;
 limit_conn_zone $binary_remote_addr zone=per_ip_connections:10m;
 limit_conn_zone $server_name zone=all_connections:1m;
 
+map $scheme $http_redirect_host {
+    default "";
+    http "${HTTP_REDIRECT_HOST}";
+}
+
 server {
     listen 80 default_server;
     listen 443 ssl default_server;
@@ -11,6 +16,10 @@ server {
 
     include /etc/nginx/tls/current.conf;
     ssl_protocols TLSv1.2 TLSv1.3;
+
+    if ($http_redirect_host != "") {
+        return 308 https://$http_redirect_host$request_uri;
+    }
 
     limit_req zone=per_ip_requests burst=15 nodelay;
     limit_req zone=all_requests burst=50 nodelay;
