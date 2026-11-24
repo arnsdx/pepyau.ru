@@ -6,7 +6,9 @@ function fitImage() {
     viewport.setAttribute("height", clientHeight);
     if (!image.naturalWidth) return;
 
-    const scale = Math.min(1, clientWidth / image.naturalWidth, clientHeight / image.naturalHeight);
+    const maxWidth = clientWidth * 0.6;
+    const maxHeight = clientHeight * 0.75;
+    const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
     image.width = Math.max(1, Math.floor(image.naturalWidth * scale));
     image.height = Math.max(1, Math.floor(image.naturalHeight * scale));
 }
