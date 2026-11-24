@@ -3,14 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Случайная картинка</title>
+  <title>Pepyau</title>
   <script src="./fit.js" defer></script>
 </head>
 <body marginwidth="0" marginheight="0" leftmargin="0" topmargin="0">
-  <table id="viewport" role="presentation" width="100%" cellpadding="0" cellspacing="0">
+  <table id="viewport" role="presentation" align="center" width="60%" cellpadding="0" cellspacing="0" hidden>
+    <tr aria-hidden="true"><td data-page-inset></td></tr>
+    <tr><td id="top-caption" align="center" valign="top">
+      <header><font face="Helvetica, Arial, sans-serif" size="3">Pepyau</font></header>
+    </td></tr>
     <tr><td align="center" valign="middle">
       <img id="image" src="/image/__IMAGE_ID__" alt="Случайная картинка" align="top" hidden>
     </td></tr>
+    <tr><td id="bottom-caption" align="center" valign="bottom">
+      <footer><font face="Helvetica, Arial, sans-serif" size="3">Картинки отображаются рандомно. Обновите страницу, чтобы увидеть другой прикол.</font></footer>
+    </td></tr>
+    <tr aria-hidden="true"><td data-page-inset></td></tr>
   </table>
 </body>
 </html>
