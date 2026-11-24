@@ -19,6 +19,7 @@ function fitImage() {
 
     const inset = Math.round(clientHeight * 0.05);
     for (const cell of insetCells) cell.setAttribute("height", inset);
+    viewport.hidden = false;
     // Reserve the same space above and below the image to keep it centered.
     const captionHeight = Math.max(...captionCells.map(cell => cell.firstElementChild.offsetHeight));
     for (const cell of captionCells) cell.setAttribute("height", captionHeight);
