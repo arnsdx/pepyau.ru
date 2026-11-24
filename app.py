@@ -62,7 +62,7 @@ def create_app(images_dir, db_path):
             if path == "/fit.js":
                 return respond(HTTPStatus.OK, FIT_SCRIPT, "text/javascript; charset=utf-8")
             if path == "/":
-                selected = catalog.lookup(db_path, "SELECT id FROM images ORDER BY RANDOM() LIMIT 1")
+                selected = catalog.lookup(db_path, catalog.RANDOM_IMAGE_SQL)
                 if selected is None:
                     return respond(HTTPStatus.SERVICE_UNAVAILABLE, b"No indexed images\n")
                 return respond(
@@ -129,7 +129,7 @@ def main():
     server.add_argument("--port", default=8080, type=int)
     args = parser.parse_args()
 
-    images_dir = Path(os.environ.get("IMAGES_DIR", "../Pinterest_large")).resolve()
+    images_dir = Path(os.environ.get("IMAGES_DIR", "images")).resolve()
     db_path = Path(os.environ.get("DB_PATH", "data/catalog.sqlite3")).resolve()
     if args.command == "index":
         return 0 if update_index(images_dir, db_path) else 1
@@ -147,7 +147,13 @@ def main():
     if interval:
         Thread(target=index_on_timer, args=(images_dir, db_path, interval), daemon=True).start()
 
-    serve(create_app(images_dir, db_path), host=args.host, port=args.port)
+    serve(
+        create_app(images_dir, db_path),
+        host=args.host,
+        port=args.port,
+        max_request_body_size=16 * 1024,
+        max_request_header_size=32 * 1024,
+    )
     return 0
 
 

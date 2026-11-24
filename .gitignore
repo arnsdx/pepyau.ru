@@ -1,5 +1,7 @@
 /.env
 /.venv/
 /data/
+*.pem
+*.key
 __pycache__/
 *.pyc

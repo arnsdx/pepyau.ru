@@ -3,13 +3,18 @@ services:
     build: .
     init: true
     restart: unless-stopped
+    logging: &bounded_logs
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       IMAGES_DIR: /images
       DB_PATH: /var/lib/random-image/catalog.sqlite3
       INDEX_INTERVAL_SECONDS: "${INDEX_INTERVAL_SECONDS:-300}"
     volumes:
       - type: bind
-        source: "${IMAGES_DIR:-../Pinterest_large}"
+        source: "${IMAGES_DIR:-./images}"
         target: /images
         read_only: true
         bind:
@@ -19,12 +24,14 @@ services:
         target: /var/lib/random-image
 
   nginx:
-    image: nginx:stable-alpine
+    image: &nginx_image nginx:1.30.8-alpine
     restart: unless-stopped
+    logging: *bounded_logs
     depends_on:
       - app
     ports:
-      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8080}:80"
+      - "127.0.0.1:${HTTP_PORT:-8080}:80"
+      - "${HTTPS_BIND:-${HTTP_BIND:-127.0.0.1}}:${HTTPS_PORT:-8443}:443"
     volumes:
       - type: bind
         source: ./nginx/default.conf
@@ -32,6 +39,28 @@ services:
         read_only: true
         bind:
           create_host_path: false
+      - type: volume
+        source: tls
+        target: /etc/nginx/tls
+        read_only: true
+
+  tls-import:
+    image: *nginx_image
+    profiles: ["maintenance"]
+    entrypoint: ["/bin/sh", "/usr/local/bin/install-tls"]
+    volumes:
+      - type: bind
+        source: ./nginx/install-tls.sh
+        target: /usr/local/bin/install-tls
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: volume
+        source: tls
+        target: /etc/nginx/tls
 
 volumes:
   catalog:
+  tls:
+    external: true
+    name: "${TLS_VOLUME_NAME:-random-image-tls}"

@@ -2,4 +2,7 @@
 .env
 .venv
 data
+images
+**/*.pem
+**/*.key
 **/__pycache__
