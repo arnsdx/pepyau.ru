@@ -28,7 +28,10 @@ services:
     restart: unless-stopped
     logging: *bounded_logs
     depends_on:
-      - app
+      app:
+        condition: service_started
+      tls-import:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${HTTP_PORT:-8080}:80"
       - "${HTTPS_BIND:-${HTTP_BIND:-127.0.0.1}}:${HTTPS_PORT:-8443}:443"
@@ -46,8 +49,8 @@ services:
 
   tls-import:
     image: *nginx_image
-    profiles: ["maintenance"]
     entrypoint: ["/bin/sh", "/usr/local/bin/install-tls"]
+    command: ["--ensure"]
     volumes:
       - type: bind
         source: ./nginx/install-tls.sh

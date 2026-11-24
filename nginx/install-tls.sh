@@ -22,8 +22,43 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+check_source() {
+    if [ ! -d "$1" ] || [ ! -x "$1" ]; then
+        printf 'Cannot access TLS source directory inside the container: %s\n' "$1" >&2
+        return 1
+    fi
+
+    for pem_name in fullchain.pem privkey.pem; do
+        pem_path=$1/$pem_name
+        if [ -L "$pem_path" ] && [ ! -e "$pem_path" ]; then
+            printf 'TLS symlink target is unavailable inside the container: %s\n' "$pem_path" >&2
+        elif [ ! -e "$pem_path" ]; then
+            printf 'TLS file is missing inside the container: %s\n' "$pem_path" >&2
+        elif [ ! -f "$pem_path" ] || [ ! -r "$pem_path" ] || [ ! -s "$pem_path" ]; then
+            printf 'TLS file must be a readable, nonempty regular file: %s\n' "$pem_path" >&2
+        else
+            continue
+        fi
+        return 1
+    done
+    return 0
+}
+
 if [ "$#" -ne 1 ]; then
-    echo "Usage: install-tls SOURCE_DIR | --rollback" >&2
+    echo "Usage: install-tls SOURCE_DIR | --ensure | --rollback" >&2
+    exit 2
+fi
+
+if [ "$1" = --ensure ]; then
+    if [ -s "$tls_dir/current.conf" ]; then
+        exit 0
+    fi
+    if ! check_source "$tls_dir"; then
+        echo "TLS volume is not initialized. Import fullchain.pem and privkey.pem with docker compose run --rm --no-deps -v /absolute/path/to/certs:/incoming:ro tls-import /incoming." >&2
+        exit 2
+    fi
+    set -- "$tls_dir"
+elif [ "$1" != --rollback ] && ! check_source "$1"; then
     exit 2
 fi
 
@@ -32,10 +67,6 @@ check_config=$(mktemp "$tls_dir/.check.XXXXXX")
 if [ "$1" = --rollback ]; then
     cp "$tls_dir/previous.conf" "$candidate"
 else
-    if [ ! -s "$1/fullchain.pem" ] || [ ! -s "$1/privkey.pem" ]; then
-        echo "SOURCE_DIR must contain fullchain.pem and privkey.pem" >&2
-        exit 2
-    fi
     release=$(mktemp -d "$tls_dir/release.XXXXXX")
     cp "$1/fullchain.pem" "$release/fullchain.pem"
     cp "$1/privkey.pem" "$release/privkey.pem"
@@ -48,11 +79,11 @@ printf 'events {}\nhttp { server { listen 443 ssl; include "%s"; } }\n' \
     "$candidate" > "$check_config"
 nginx -t -c "$check_config" </dev/null
 
-if [ -f "$tls_dir/current.conf" ]; then
+if [ -s "$tls_dir/current.conf" ]; then
     previous=$(mktemp "$tls_dir/.previous.XXXXXX")
     cp "$tls_dir/current.conf" "$previous"
     mv -f "$previous" "$tls_dir/previous.conf"
 fi
 keep_release=true
 mv -f "$candidate" "$tls_dir/current.conf"
-echo "TLS configuration activated. Reload nginx to serve the selected certificate."
+echo "TLS configuration activated."
