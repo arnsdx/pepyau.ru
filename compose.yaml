@@ -1,0 +1,37 @@
+services:
+  app:
+    build: .
+    init: true
+    restart: unless-stopped
+    environment:
+      IMAGES_DIR: /images
+      DB_PATH: /var/lib/random-image/catalog.sqlite3
+      INDEX_INTERVAL_SECONDS: "${INDEX_INTERVAL_SECONDS:-300}"
+    volumes:
+      - type: bind
+        source: "${IMAGES_DIR:-../Pinterest_large}"
+        target: /images
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: volume
+        source: catalog
+        target: /var/lib/random-image
+
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8080}:80"
+    volumes:
+      - type: bind
+        source: ./nginx/default.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind:
+          create_host_path: false
+
+volumes:
+  catalog:
