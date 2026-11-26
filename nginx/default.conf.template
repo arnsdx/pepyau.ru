@@ -11,6 +11,7 @@ map $scheme $http_redirect_host {
 server {
     listen 80 default_server;
     listen 443 ssl default_server;
+    http2 on;
     server_name _;
     server_tokens off;
 
