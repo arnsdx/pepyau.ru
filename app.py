@@ -4,9 +4,12 @@ import os
 import re
 import sqlite3
 import time
+from base64 import b64encode
+from hashlib import shake_256
 from http import HTTPStatus
 from pathlib import Path
 from threading import Thread
+from urllib.parse import parse_qs
 from wsgiref.util import FileWrapper
 
 import catalog
@@ -14,6 +17,9 @@ import catalog
 PROJECT = Path(__file__).resolve().parent
 PAGE = (PROJECT / "index.html").read_bytes()
 FIT_SCRIPT = (PROJECT / "fit.js").read_bytes()
+PROBE_PADDING_BYTES = 30 * 1024
+PROBE_PADDING = b64encode(shake_256(b"pepyau.html-probe.v1").digest(PROBE_PADDING_BYTES * 3 // 4))
+PROBE_COMMENT = b"<!-- pepyau-probe-start\n" + PROBE_PADDING + b"\n-->\n  <!-- pepyau-probe-end -->"
 IMAGE_URL = re.compile(r"/image/([a-f0-9]{64})")
 PAGE_POLICY = "default-src 'none'; img-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'"
 LOGGER = logging.getLogger(__name__)
@@ -65,9 +71,12 @@ def create_app(images_dir, db_path):
                 selected = catalog.lookup(db_path, catalog.RANDOM_IMAGE_SQL)
                 if selected is None:
                     return respond(HTTPStatus.SERVICE_UNAVAILABLE, b"No indexed images\n")
+                query = parse_qs(environ.get("QUERY_STRING", ""))
+                probe = PROBE_COMMENT if "1" in query.get("probe", ()) else b""
+                page = PAGE.replace(b"<!-- __PROBE__ -->", probe)
                 return respond(
                     HTTPStatus.OK,
-                    PAGE.replace(b"__IMAGE_ID__", selected[0].encode("ascii")),
+                    page.replace(b"__IMAGE_ID__", selected[0].encode("ascii")),
                     "text/html; charset=utf-8",
                     [("Content-Security-Policy", PAGE_POLICY)],
                 )
