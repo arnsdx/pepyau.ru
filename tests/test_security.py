@@ -55,6 +55,26 @@ class CatalogSecurityTests(unittest.TestCase):
             image.truncate(MAX_IMAGE_BYTES + 1)
         self.assertEqual(self.request(f"/image/{image_id}")[0], 404)
 
+    def test_html_size_probe_is_opt_in_and_precedes_content(self):
+        self.assertEqual(reindex(self.images, self.db), 1)
+        status, normal = self.request("/")
+        self.assertEqual(status, 200)
+        self.assertNotIn(b"pepyau-probe", normal)
+        self.assertNotIn(b"__PROBE__", normal)
+        self.assertEqual(self.request("/", query="probe=0"), (200, normal))
+
+        status, html = self.request("/", query="x=1&probe=1")
+        self.assertEqual(status, 200)
+        before, start, rest = html.partition(b"<!-- pepyau-probe-start\n")
+        padding, end, after = rest.partition(b"\n-->\n  <!-- pepyau-probe-end -->")
+        self.assertTrue(start and end)
+        self.assertIn(b"<body ", before)
+        self.assertEqual(len(padding), 30 * 1024)
+        self.assertTrue(padding.isascii())
+        self.assertTrue(after.lstrip().startswith(b"<table "))
+        self.assertEqual(before + after, normal)
+        self.assertEqual(self.request("/", method="HEAD", query="probe=1"), (200, b""))
+
     def test_api_placeholder_returns_401_for_entire_subtree(self):
         for path in ("/api/v2", "/api/v2/", "/api/v2/get", "/api/v2/other/nested"):
             for method in ("GET", "POST", "PUT", "DELETE", "OPTIONS"):
